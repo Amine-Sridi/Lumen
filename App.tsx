@@ -1,40 +1,25 @@
 import { StatusBar } from 'expo-status-bar';
-import { Button, StyleSheet, Text, View } from 'react-native';
-import { AuthProvider, useAuth } from './app/context/AuthContext';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import Home from './app/Screens/Home';
-import Login from './app/Screens/Login';
-import { NavigationContainer } from '@react-navigation/native';
-
-
-const Stack = createNativeStackNavigator();
+import React from 'react';
+import { AuthProvider } from './app/context/AuthContext';
+import { ProductProvider } from './app/context/ProductContext';
+import { InventoryProvider } from './app/context/InventoryContext';
+import { SalesProvider } from './app/context/SalesContext';
+import { AppNavigator } from './app/navigation/AppNavigator';
+import { ErrorBoundary } from './app/components/ErrorBoundary';
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Layout></Layout>
-
-
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <ProductProvider>
+          <InventoryProvider>
+            <SalesProvider>
+              <AppNavigator />
+              <StatusBar style="auto" />
+            </SalesProvider>
+          </InventoryProvider>
+        </ProductProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
-}
-
-
-export const Layout = () => {
-  const { authState,onLogout } = useAuth();
-  return(
-    <NavigationContainer>
-      <Stack.Navigator>
-        { authState?.authenticated ? 
-          <Stack.Screen 
-          name="Home" 
-          component={Home}
-          options={{
-            headerRight: () => <Button onPress={onLogout} title="Sign Out"/>,
-          }}></Stack.Screen> : 
-          <Stack.Screen name="Login" component={Login}></Stack.Screen>
-        }
-      </Stack.Navigator>  
-    </NavigationContainer>
-  )
 }

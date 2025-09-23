@@ -3,14 +3,18 @@ import React, { useState } from 'react'
 import { useAuth } from '../context/AuthContext';
 import styles from '../Styles/LoginStyle';
 
-const Login = () => {
+interface LoginScreenProps {
+  navigation: any;
+}
+
+const Login: React.FC<LoginScreenProps> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({ email: '', password: '' });
-  const { onLogin, onRegister } = useAuth();
+  const { onLogin, onDemoLogin } = useAuth();
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -41,9 +45,9 @@ const Login = () => {
     
     setIsLoading(true);
     try {
-      const result = await onLogin!(email, password);
+      const result = await onLogin({ email, password });
       if (result && result.error) {
-        alert(result.msg);
+        alert(result.message || result.error);
       }
     } catch (error) {
       alert('Login failed. Please try again.');
@@ -52,20 +56,16 @@ const Login = () => {
     }
   };
 
-  const register = async () => {
-    if (!validateForm()) return;
-    
+  const register = () => {
+    navigation.navigate('Register');
+  };
+
+  const demoLogin = async () => {
     setIsLoading(true);
     try {
-      const result = await onRegister!(email, password);
-      if (result && result.error) {
-        alert(result.msg);
-      } else {
-        // Registration successful, now log the user in automatically
-        await login();
-      }
+      await onDemoLogin();
     } catch (error) {
-      alert('Registration failed. Please try again.');
+      alert('Demo mode failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -95,7 +95,7 @@ const Login = () => {
                 style={[
                   styles.input,
                   emailFocused && styles.inputFocused,
-                  errors.email && styles.inputError
+                  errors.email ? styles.inputError : null
                 ]}
                 placeholder="Enter your email"
                 placeholderTextColor="#9ca3af"
@@ -119,7 +119,7 @@ const Login = () => {
                 style={[
                   styles.input,
                   passwordFocused && styles.inputFocused,
-                  errors.password && styles.inputError
+                  errors.password ? styles.inputError : null
                 ]}
                 placeholder="Enter your password"
                 placeholderTextColor="#9ca3af"
@@ -156,10 +156,20 @@ const Login = () => {
             <TouchableOpacity 
               style={styles.secondaryButton}
               onPress={register}
-              disabled={isLoading}
             >
               <Text style={styles.secondaryButtonText}>Create Account</Text>
             </TouchableOpacity>
+
+            {/* Demo Mode Button - Development Only */}
+            {__DEV__ && (
+              <TouchableOpacity 
+                style={styles.demoButton}
+                onPress={demoLogin}
+                disabled={isLoading}
+              >
+                <Text style={styles.demoButtonText}>🚀 Demo Mode - Skip Login</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Footer */}
