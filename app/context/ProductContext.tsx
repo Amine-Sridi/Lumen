@@ -50,7 +50,7 @@ export const ProductProvider: React.FC<ProductProviderProps> = ({ children }) =>
   }, []);
 
   /**
-   * Fetch products with pagination
+   * Fetch products
    */
   const fetchProducts = async (page: number = 1, limit: number = 50): Promise<void> => {
     try {
@@ -60,9 +60,12 @@ export const ProductProvider: React.FC<ProductProviderProps> = ({ children }) =>
       const response = await productService.getProducts(page, limit);
       
       if (response.success && response.data) {
-        setProducts(response.data.data);
+        // Ensure we always set an array
+        const productsArray = Array.isArray(response.data) ? response.data : [];
+        setProducts(productsArray);
       } else {
         setError(response.error || 'Failed to fetch products');
+        setProducts([]); // Ensure products is always an array
       }
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred');
@@ -82,9 +85,12 @@ export const ProductProvider: React.FC<ProductProviderProps> = ({ children }) =>
       const response = await productService.searchProducts(query);
       
       if (response.success && response.data) {
-        setProducts(response.data);
+        // Ensure we always set an array
+        const productsArray = Array.isArray(response.data) ? response.data : [];
+        setProducts(productsArray);
       } else {
         setError(response.error || 'Failed to search products');
+        setProducts([]); // Ensure products is always an array
       }
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred');
@@ -142,8 +148,11 @@ export const ProductProvider: React.FC<ProductProviderProps> = ({ children }) =>
       const response = await productService.createProduct(productData);
       
       if (response.success && response.data) {
-        // Add the new product to the local state
-        setProducts(prev => [...prev, response.data!]);
+        // Add the new product to the local state with safety check
+        setProducts(prev => {
+          const safeProducts = Array.isArray(prev) ? prev : [];
+          return [...safeProducts, response.data!];
+        });
       } else {
         setError(response.error || 'Failed to create product');
       }
@@ -172,12 +181,13 @@ export const ProductProvider: React.FC<ProductProviderProps> = ({ children }) =>
       const response = await productService.updateProduct(id, productData);
       
       if (response.success && response.data) {
-        // Update the product in local state
-        setProducts(prev => 
-          prev.map(product => 
+        // Update the product in local state with safety check
+        setProducts(prev => {
+          const safeProducts = Array.isArray(prev) ? prev : [];
+          return safeProducts.map(product => 
             product.id === id ? response.data! : product
-          )
-        );
+          );
+        });
       } else {
         setError(response.error || 'Failed to update product');
       }
@@ -206,8 +216,11 @@ export const ProductProvider: React.FC<ProductProviderProps> = ({ children }) =>
       const response = await productService.deleteProduct(id);
       
       if (response.success) {
-        // Remove the product from local state
-        setProducts(prev => prev.filter(product => product.id !== id));
+        // Remove the product from local state with safety check
+        setProducts(prev => {
+          const safeProducts = Array.isArray(prev) ? prev : [];
+          return safeProducts.filter(product => product.id !== id);
+        });
       } else {
         setError(response.error || 'Failed to delete product');
       }

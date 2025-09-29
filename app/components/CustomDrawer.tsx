@@ -1,6 +1,6 @@
 /**
  * CustomDrawer Component
- * Professional drawer/sidebar layout for the app navigation
+ * Professional drawer/sidebar layout with enhanced navigation
  */
 
 import React from 'react';
@@ -91,12 +91,14 @@ export const CustomDrawer: React.FC<CustomDrawerProps> = (props) => {
             inactiveTintColor={colors.textSecondary}
           />
           
+
+          
           <DrawerItem
-            label="Barcode Scanner"
+            label="Sales History"
             icon={({ size, color }) => (
-              <Ionicons name="scan-outline" size={size} color={color} />
+              <Ionicons name="receipt-outline" size={size} color={color} />
             )}
-            onPress={() => props.navigation.navigate('Scanner')}
+            onPress={() => props.navigation.navigate('Sales')}
             labelStyle={styles.drawerItemLabel}
             style={styles.drawerItem}
             activeTintColor={colors.primary}
@@ -106,9 +108,9 @@ export const CustomDrawer: React.FC<CustomDrawerProps> = (props) => {
           <DrawerItem
             label="Record Sale"
             icon={({ size, color }) => (
-              <Ionicons name="receipt-outline" size={size} color={color} />
+              <Ionicons name="add-outline" size={size} color={color} />
             )}
-            onPress={() => props.navigation.navigate('Sales')}
+            onPress={() => props.navigation.navigate('ScanBarcode', { mode: 'sale' })}
             labelStyle={styles.drawerItemLabel}
             style={styles.drawerItem}
             activeTintColor={colors.primary}
@@ -128,10 +130,7 @@ export const CustomDrawer: React.FC<CustomDrawerProps> = (props) => {
             icon={({ size, color }) => (
               <Ionicons name="person-outline" size={size} color={color} />
             )}
-            onPress={() => {
-              // Navigate to profile when implemented
-              console.log('Navigate to profile');
-            }}
+            onPress={() => props.navigation.navigate('Profile')}
             labelStyle={styles.drawerItemLabel}
             style={styles.drawerItem}
             activeTintColor={colors.primary}
@@ -143,10 +142,7 @@ export const CustomDrawer: React.FC<CustomDrawerProps> = (props) => {
             icon={({ size, color }) => (
               <Ionicons name="settings-outline" size={size} color={color} />
             )}
-            onPress={() => {
-              // Navigate to settings when implemented
-              console.log('Navigate to settings');
-            }}
+            onPress={() => props.navigation.navigate('Settings')}
             labelStyle={styles.drawerItemLabel}
             style={styles.drawerItem}
             activeTintColor={colors.primary}

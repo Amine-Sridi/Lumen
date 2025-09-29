@@ -14,7 +14,7 @@ const Login: React.FC<LoginScreenProps> = ({ navigation }) => {
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({ email: '', password: '' });
-  const { onLogin, onDemoLogin } = useAuth();
+  const { onLogin } = useAuth();
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -60,16 +60,7 @@ const Login: React.FC<LoginScreenProps> = ({ navigation }) => {
     navigation.navigate('Register');
   };
 
-  const demoLogin = async () => {
-    setIsLoading(true);
-    try {
-      await onDemoLogin();
-    } catch (error) {
-      alert('Demo mode failed. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+
 
   return (
     <KeyboardAvoidingView 
@@ -160,16 +151,7 @@ const Login: React.FC<LoginScreenProps> = ({ navigation }) => {
               <Text style={styles.secondaryButtonText}>Create Account</Text>
             </TouchableOpacity>
 
-            {/* Demo Mode Button - Development Only */}
-            {__DEV__ && (
-              <TouchableOpacity 
-                style={styles.demoButton}
-                onPress={demoLogin}
-                disabled={isLoading}
-              >
-                <Text style={styles.demoButtonText}>🚀 Demo Mode - Skip Login</Text>
-              </TouchableOpacity>
-            )}
+
           </View>
 
           {/* Footer */}

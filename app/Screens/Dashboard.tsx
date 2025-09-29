@@ -3,7 +3,7 @@
  * Main overview screen showing inventory statistics, low stock alerts, and quick actions
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,9 +26,32 @@ import { HeaderView } from '../components/HeaderView';
 
 export const DashboardScreen: React.FC = () => {
   const navigation = useNavigation();
-  const { products, isLoading: productsLoading, fetchProducts } = useProducts();
-  const { inventory, isLoading: inventoryLoading, fetchInventory } = useInventory();
-  const { sales, fetchSales, getSalesSummary } = useSales();
+  
+  // Get data from contexts with safe fallbacks
+  const productContext = useProducts();
+  const inventoryContext = useInventory();
+  const salesContext = useSales();
+  
+  // Ensure we always have arrays, even if contexts return undefined (memoized to prevent re-renders)
+  const products = useMemo(() => 
+    Array.isArray(productContext?.products) ? productContext.products : [], 
+    [productContext?.products]
+  );
+  const inventory = useMemo(() => 
+    Array.isArray(inventoryContext?.inventory) ? inventoryContext.inventory : [], 
+    [inventoryContext?.inventory]
+  );
+  const sales = useMemo(() => 
+    Array.isArray(salesContext?.sales) ? salesContext.sales : [], 
+    [salesContext?.sales]
+  );
+  
+  const productsLoading = productContext?.isLoading || false;
+  const inventoryLoading = inventoryContext?.isLoading || false;
+  const fetchProducts = productContext?.fetchProducts || (() => Promise.resolve());
+  const fetchInventory = inventoryContext?.fetchInventory || (() => Promise.resolve());
+  const fetchSales = salesContext?.fetchSales || (() => Promise.resolve());
+  const getSalesSummary = salesContext?.getSalesSummary || (() => Promise.resolve());
   
   const [refreshing, setRefreshing] = useState(false);
   const [salesSummary, setSalesSummary] = useState({
@@ -43,7 +66,7 @@ export const DashboardScreen: React.FC = () => {
 
   useEffect(() => {
     calculateSummary();
-  }, [products, inventory, sales]);
+  }, [products.length, inventory.length, sales.length]);
 
   const loadDashboardData = async () => {
     try {
@@ -83,7 +106,7 @@ export const DashboardScreen: React.FC = () => {
   };
 
   const navigateToScanBarcode = () => {
-    (navigation as any).navigate('Scanner');
+    (navigation as any).navigate('ScanBarcode');
   };
 
   const navigateToProducts = () => {
@@ -99,6 +122,11 @@ export const DashboardScreen: React.FC = () => {
   const recentSales = sales
     .sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime())
     .slice(0, 3);
+
+  // Check if contexts are properly initialized
+  if (!productContext || !inventoryContext || !salesContext) {
+    return <LoadingSpinner message="Initializing..." />;
+  }
 
   if (productsLoading || inventoryLoading) {
     return <LoadingSpinner message="Loading dashboard..." />;
@@ -184,66 +212,63 @@ export const DashboardScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Sample Products Section */}
-        <View style={styles.sampleProductsContainer}>
-          <Text style={styles.sectionTitle}>Featured Products</Text>
-          <View style={styles.productGrid}>
-            <View style={styles.productCard}>
-              <View style={styles.productImagePlaceholder}>
-                <Ionicons name="headset-outline" size={40} color={colors.primary} />
-              </View>
-              <View style={styles.productInfo}>
-                <Text style={styles.productName}>Wireless Headphones</Text>
-                <Text style={styles.productPrice}>$99.99</Text>
-                <View style={styles.productStockContainer}>
-                  <View style={[styles.stockIndicator, { backgroundColor: colors.success }]} />
-                  <Text style={[styles.productStock, { color: colors.success }]}>In Stock: 25</Text>
-                </View>
-              </View>
+        {/* Recent Products Section */}
+        <View style={styles.recentProductsContainer}>
+          <Text style={styles.sectionTitle}>Recent Products</Text>
+          {products.length > 0 ? (
+            <View style={styles.productGrid}>
+              {products.slice(0, 4).map((product, index) => {
+                const inventoryItem = inventory.find(item => item.productId === product.id);
+                const getStockStatus = () => {
+                  if (!inventoryItem) return { text: 'No Stock', color: colors.error, isLowStock: true };
+                  if (inventoryItem.quantity === 0) {
+                    return { text: 'Out of Stock', color: colors.error, isLowStock: true };
+                  } else if (inventoryItem.quantity <= inventoryItem.minimumStock) {
+                    return { text: `Low Stock: ${inventoryItem.quantity}`, color: colors.warning, isLowStock: true };
+                  } else {
+                    return { text: `In Stock: ${inventoryItem.quantity}`, color: colors.success, isLowStock: false };
+                  }
+                };
+                const stockStatus = getStockStatus();
+                
+                return (
+                  <TouchableOpacity 
+                    key={product.id} 
+                    style={styles.productCard}
+                    onPress={() => (navigation as any).navigate('ProductDetails', { productId: product.id })}
+                  >
+                    <View style={styles.productImagePlaceholder}>
+                      <Ionicons name="cube-outline" size={40} color={colors.primary} />
+                    </View>
+                    <View style={styles.productInfo}>
+                      <Text style={styles.productName} numberOfLines={2}>
+                        {product.name}
+                      </Text>
+                      <Text style={styles.productPrice}>${product.price.toFixed(2)}</Text>
+                      <View style={styles.productStockContainer}>
+                        <View style={[styles.stockIndicator, { backgroundColor: stockStatus.color }]} />
+                        <Text style={[styles.productStock, { color: stockStatus.color }]} numberOfLines={1}>
+                          {stockStatus.text}
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-
-            <View style={styles.productCard}>
-              <View style={styles.productImagePlaceholder}>
-                <Ionicons name="phone-portrait-outline" size={40} color={colors.primary} />
-              </View>
-              <View style={styles.productInfo}>
-                <Text style={styles.productName}>Smartphone Case</Text>
-                <Text style={styles.productPrice}>$24.99</Text>
-                <View style={styles.productStockContainer}>
-                  <View style={[styles.stockIndicator, { backgroundColor: colors.success }]} />
-                  <Text style={[styles.productStock, { color: colors.success }]}>In Stock: 50</Text>
-                </View>
-              </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="cube-outline" size={64} color={colors.textSecondary} />
+              <Text style={styles.emptyStateText}>No products found</Text>
+              <Text style={styles.emptyStateSubtext}>Add your first product to get started</Text>
+              <TouchableOpacity
+                style={styles.emptyStateButton}
+                onPress={() => (navigation as any).navigate('AddProduct')}
+              >
+                <Text style={styles.emptyStateButtonText}>Add Product</Text>
+              </TouchableOpacity>
             </View>
-
-            <View style={styles.productCard}>
-              <View style={styles.productImagePlaceholder}>
-                <Ionicons name="laptop-outline" size={40} color={colors.primary} />
-              </View>
-              <View style={styles.productInfo}>
-                <Text style={styles.productName}>Laptop Stand</Text>
-                <Text style={styles.productPrice}>$49.99</Text>
-                <View style={styles.productStockContainer}>
-                  <View style={[styles.stockIndicator, { backgroundColor: colors.warning }]} />
-                  <Text style={[styles.productStock, { color: colors.warning }]}>Low Stock: 3</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.productCard}>
-              <View style={styles.productImagePlaceholder}>
-                <Ionicons name="watch-outline" size={40} color={colors.primary} />
-              </View>
-              <View style={styles.productInfo}>
-                <Text style={styles.productName}>Smart Watch</Text>
-                <Text style={styles.productPrice}>$199.99</Text>
-                <View style={styles.productStockContainer}>
-                  <View style={[styles.stockIndicator, { backgroundColor: colors.success }]} />
-                  <Text style={[styles.productStock, { color: colors.success }]}>In Stock: 12</Text>
-                </View>
-              </View>
-            </View>
-          </View>
+          )}
         </View>
 
         {/* Low Stock Alert */}
@@ -450,7 +475,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   
-  sampleProductsContainer: {
+  recentProductsContainer: {
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.xl,
   },
@@ -597,6 +622,42 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.lg,
     fontWeight: typography.fontWeight.semibold,
     color: colors.success,
+  },
+  
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+  },
+  
+  emptyStateText: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
+    textAlign: 'center',
+  },
+  
+  emptyStateSubtext: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textLight,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+    marginBottom: spacing.lg,
+  },
+  
+  emptyStateButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+  },
+  
+  emptyStateButtonText: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.white,
   },
 });
 

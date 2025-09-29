@@ -26,6 +26,10 @@ export interface User {
   firstName?: string;      // User's first name (optional)
   lastName?: string;       // User's last name (optional) 
   phone?: string;          // User's phone number (optional, international format)
+  businessName?: string;   // Business name (optional)
+  businessType?: string;   // Business type/industry (optional)
+  businessAddress?: string; // Business address (optional)
+  lastLoginAt?: Date;      // Last login timestamp (optional)
   createdAt: Date;         // Account creation timestamp
   updatedAt: Date;         // Last account update timestamp
 }
@@ -189,7 +193,7 @@ export type RootStackParamList = {
   Products: undefined;
   Scanner: undefined;
   Sales: undefined;
-  AddProduct: undefined;
+  AddProduct: { scannedBarcode?: string } | undefined;
   ProductDetails: { productId: string };
   Home: undefined;
   ScanBarcode: { mode: 'add' | 'sale' };

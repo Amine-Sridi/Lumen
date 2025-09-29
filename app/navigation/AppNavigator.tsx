@@ -22,6 +22,12 @@ import AddProductScreen from '../Screens/AddProduct';
 import ScanBarcodeScreen from '../Screens/ScanBarcode';
 import ProductDetailsScreen from '../Screens/ProductDetails';
 import RecordSaleScreen from '../Screens/RecordSale';
+import SalesHistoryScreen from '../Screens/SalesHistory';
+import ProfileScreen from '../Screens/Profile';
+import SettingsScreen from '../Screens/Settings';
+import ChangePasswordScreen from '../Screens/ChangePassword';
+
+
 
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -80,24 +86,37 @@ const DrawerNavigator: React.FC = () => {
         }}
       />
       
+
+      
       <Drawer.Screen 
-        name="Scanner" 
-        component={ScanBarcodeScreen}
+        name="Sales" 
+        component={SalesHistoryScreen}
         options={{
-          drawerLabel: 'Barcode Scanner',
+          drawerLabel: 'Sales History',
           drawerIcon: ({ size, color }) => (
-            <Ionicons name="scan-outline" size={size} color={color} />
+            <Ionicons name="receipt-outline" size={size} color={color} />
           ),
         }}
       />
       
       <Drawer.Screen 
-        name="Sales" 
-        component={RecordSaleScreen}
+        name="Profile" 
+        component={ProfileScreen}
         options={{
-          drawerLabel: 'Record Sale',
+          drawerLabel: 'Profile',
           drawerIcon: ({ size, color }) => (
-            <Ionicons name="receipt-outline" size={size} color={color} />
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      
+      <Drawer.Screen 
+        name="Settings" 
+        component={SettingsScreen}
+        options={{
+          drawerLabel: 'Settings',
+          drawerIcon: ({ size, color }) => (
+            <Ionicons name="settings-outline" size={size} color={color} />
           ),
         }}
       />
@@ -132,6 +151,33 @@ const AppStack: React.FC = () => {
         component={ProductDetailsScreen}
         options={{
           title: 'Product Details',
+          presentation: 'modal',
+        }}
+      />
+      
+      <Stack.Screen 
+        name="RecordSale" 
+        component={RecordSaleScreen}
+        options={{
+          title: 'Record Sale',
+          presentation: 'modal',
+        }}
+      />
+      
+      <Stack.Screen 
+        name="ScanBarcode" 
+        component={ScanBarcodeScreen}
+        options={{
+          title: 'Barcode Scanner',
+          presentation: 'modal',
+        }}
+      />
+      
+      <Stack.Screen 
+        name="ChangePassword" 
+        component={ChangePasswordScreen}
+        options={{
+          title: 'Change Password',
           presentation: 'modal',
         }}
       />

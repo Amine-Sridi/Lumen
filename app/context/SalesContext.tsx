@@ -51,21 +51,26 @@ export const SalesProvider: React.FC<SalesProviderProps> = ({ children }) => {
   }, []);
 
   /**
-   * Fetch sales with pagination
+   * Fetch sales
    */
   const fetchSales = async (page: number = 1, limit: number = 50): Promise<void> => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const response = await salesService.getSales(page, limit);
+      const response = await salesService.getSales();
       
       if (response.success && response.data) {
-        setSales(response.data.data);
+        // Ensure sales is always an array
+        const safeSales = Array.isArray(response.data) ? response.data : [];
+        setSales(safeSales);
       } else {
+        setSales([]); // Set empty array on error to prevent undefined
         setError(response.error || 'Failed to fetch sales');
       }
     } catch (err: any) {
+      console.error('Error fetching sales:', err);
+      setSales([]); // Ensure array on error
       setError(err.message || 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
@@ -103,7 +108,10 @@ export const SalesProvider: React.FC<SalesProviderProps> = ({ children }) => {
       
       if (response.success && response.data) {
         // Add the new sale to the local state
-        setSales(prev => [response.data!, ...prev]);
+        setSales(prev => {
+          const safeSales = Array.isArray(prev) ? prev : [];
+          return [response.data!, ...safeSales];
+        });
         
         // Refresh sales summary to include the new sale
         await getSalesSummary();
@@ -134,29 +142,106 @@ export const SalesProvider: React.FC<SalesProviderProps> = ({ children }) => {
       if (response.success && response.data) {
         setSalesSummary(response.data);
       } else {
-        setError(response.error || 'Failed to fetch sales summary');
+        // If the API endpoint doesn't exist (404), calculate summary locally
+        if (response.error?.includes('404') || response.error?.toLowerCase().includes('not found')) {
+          console.warn('Sales summary endpoint not available, calculating locally');
+          calculateLocalSummary();
+        } else {
+          setError(response.error || 'Failed to fetch sales summary');
+        }
       }
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+      console.warn('Sales summary endpoint error, falling back to local calculation');
+      calculateLocalSummary();
     }
   };
 
   /**
-   * Get sales within a specific date range
+   * Calculate sales summary locally from current sales data
+   */
+  const calculateLocalSummary = (): void => {
+    const safeSales = Array.isArray(sales) ? sales : [];
+    
+    const totalSales = safeSales.length;
+    const totalRevenue = safeSales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+    
+    // Calculate top products by revenue
+    const productStats = safeSales.reduce((acc, sale) => {
+      const productId = sale.productId;
+      if (!acc[productId]) {
+        acc[productId] = {
+          productId,
+          productName: sale.product?.name || 'Unknown Product',
+          quantity: 0,
+          revenue: 0,
+        };
+      }
+      acc[productId].quantity += sale.quantity || 0;
+      acc[productId].revenue += sale.totalAmount || 0;
+      return acc;
+    }, {} as Record<string, any>);
+    
+    const topProducts = Object.values(productStats)
+      .sort((a: any, b: any) => b.revenue - a.revenue)
+      .slice(0, 5); // Top 5 products
+    
+    // Calculate sales by date for the last 7 days
+    const salesByDate: Array<{date: string; sales: number; revenue: number}> = [];
+    const today = new Date();
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(today.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      const daySales = safeSales.filter(sale => {
+        const saleDate = new Date(sale.saleDate);
+        return saleDate.toDateString() === date.toDateString();
+      });
+      
+      salesByDate.push({
+        date: dateStr,
+        sales: daySales.length,
+        revenue: daySales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0),
+      });
+    }
+    
+    const summary: SalesSummary = {
+      totalSales,
+      totalRevenue,
+      topProducts,
+      salesByDate,
+    };
+    
+    setSalesSummary(summary);
+  };
+
+  /**
+   * Get sales within a specific date range (placeholder for future implementation)
    */
   const getSalesByDateRange = async (startDate: Date, endDate: Date): Promise<void> => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const response = await salesService.getSalesByDateRange(startDate, endDate);
+      // For now, just fetch all sales and filter by date on client side
+      const response = await salesService.getSales();
       
       if (response.success && response.data) {
-        setSales(response.data);
+        // Ensure response.data is an array
+        const safeSales = Array.isArray(response.data) ? response.data : [];
+        const filteredSales = safeSales.filter(sale => {
+          const saleDate = new Date(sale.saleDate);
+          return saleDate >= startDate && saleDate <= endDate;
+        });
+        setSales(filteredSales);
       } else {
+        setSales([]); // Set empty array on error to prevent undefined
         setError(response.error || 'Failed to fetch sales by date range');
       }
     } catch (err: any) {
+      console.error('Error fetching sales by date range:', err);
+      setSales([]); // Ensure array on error
       setError(err.message || 'An unexpected error occurred');
     } finally {
       setIsLoading(false);

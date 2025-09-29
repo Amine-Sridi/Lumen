@@ -121,23 +121,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: typography.fontWeight.semibold,
   },
-  // Demo mode styles (development only)
-  demoButton: {
-    backgroundColor: colors.warning || '#FF9500',
-    borderRadius: 12,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.lg,
-    minHeight: 44,
-    borderWidth: 2,
-    borderColor: colors.warning || '#FF9500',
-  },
-  demoButtonText: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.white,
-  },
+
 });
 
 export default styles;

@@ -2,14 +2,22 @@
  * Enhanced Authentication Context
  * 
  * This context manages user authentication state across the entire application.
- * It handles login, registration, logout, token management, and demo mode.
+ * It handles login, registration, logout, and token management.
  * 
  * Key Features:
  * - JWT token storage and management using Expo SecureStore
  * - Automatic token validation on app startup
- * - Axios integration with automatic Authorization headers
+ * - Axios integration with automati  const value = {
+    authState,
+    onRegister: register,
+    onLogin: login,
+    onLogout: logout,
+    clearError,
+    refreshToken,
+    updateProfile,
+    refreshProfile,
+  };tion headers
  * - Token refresh mechanism for session management
- * - Demo mode for development and testing
  * - Comprehensive error handling
  * 
  * Backend Dependencies:
@@ -35,7 +43,8 @@ interface AuthContextType {
   onLogout: () => Promise<void>;                                           // User logout and cleanup
   clearError: () => void;                                                  // Clear authentication errors
   refreshToken: () => Promise<void>;                                       // Refresh JWT token
-  onDemoLogin: () => Promise<void>;                                        // Demo mode authentication
+  updateProfile: (profileData: Partial<User>) => Promise<void>;           // Update user profile
+  refreshProfile: () => Promise<void>;                                     // Refresh user profile data
 }
 
 // Secure storage keys for persistent authentication data
@@ -43,7 +52,7 @@ const TOKEN_KEY = 'lumen_jwt_token';    // Key for storing JWT token
 const USER_KEY = 'lumen_user_data';     // Key for storing user profile data
 
 // API base URL - Configure this for your backend server
-export const API_URL = 'http://localhost:3000/api';
+export const API_URL = 'http://192.168.0.193:3000/api';
 
 // Create the authentication context
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -72,24 +81,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loadStoredAuth();
   }, []);
 
-  /**
-   * Load stored authentication data on app startup
-   * 
-   * This function is called when the app initializes to check if the user
-   * has previously authenticated. It retrieves stored JWT token and user data,
-   * validates them, and sets up the authentication state accordingly.
-   * 
-   * Process:
-   * 1. Retrieve token and user data from secure storage
-   * 2. Parse and validate the stored data
-   * 3. Set up Axios authorization headers if valid
-   * 4. Update authentication state
-   * 5. Handle any errors gracefully
-   */
   const loadStoredAuth = async (): Promise<void> => {
     try {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
-      const userData = await SecureStore.getItemAsync(USER_KEY);
+      let token, userData;
+      
+      try {
+        // Try SecureStore first
+        token = await SecureStore.getItemAsync(TOKEN_KEY);
+        userData = await SecureStore.getItemAsync(USER_KEY);
+      } catch (secureStoreError) {
+        // Fallback to AsyncStorage
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        token = await AsyncStorage.getItem('accessToken');
+        userData = await AsyncStorage.getItem('userData');
+      }
 
       if (token && userData) {
         const user = JSON.parse(userData);
@@ -122,33 +127,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  /**
-   * Register a new user
-   * 
-   * Sends user registration data to the backend. This only creates the user account
-   * but does NOT automatically log them in. The user will need to sign in after
-   * successful registration.
-   * 
-   * Backend Endpoint: POST /api/users
-   * Expected Request Body: { email, password, firstName, lastName, phone }
-   * Expected Response: User object without sensitive data
-   * 
-   * @param credentials - User registration information
-   * @returns Promise<ApiResponse<User>> - Registration result
-   */
   const register = async (credentials: RegisterCredentials): Promise<ApiResponse<User>> => {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true }));
 
-      const response = await axios.post(`${API_URL}/users`, credentials);
+      const response = await axios.post(`${API_URL}/auth/register`, credentials);
+      
+      // Reset loading state on successful registration
+      setAuthState(prev => ({ 
+        ...prev, 
+        isLoading: false,
+      }));
       
       return {
         success: true,
-        data: response.data,
+        data: response.data.user,
         message: 'Registration successful',
       };
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Registration failed';
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Registration failed';
       
       setAuthState(prev => ({ 
         ...prev, 
@@ -162,42 +159,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  /**
-   * Login user with credentials
-   * 
-   * Authenticates user with email and password, receives JWT token and user data,
-   * stores them securely, and sets up the authenticated session.
-   * 
-   * Backend Endpoint: POST /api/auth
-   * Expected Request Body: { email, password }
-   * Expected Response: { token: string, user: User }
-   * 
-   * Process:
-   * 1. Send credentials to backend
-   * 2. Receive JWT token and user data
-   * 3. Store token and user data in secure storage
-   * 4. Set up Axios authorization header
-   * 5. Update authentication state
-   * 
-   * @param credentials - User login credentials
-   * @returns Promise<ApiResponse<{ token: string; user: User }>> - Login result
-   */
   const login = async (credentials: LoginCredentials): Promise<ApiResponse<{ token: string; user: User }>> => {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true }));
+      
+      console.log('🔐 Attempting login with:', credentials.email);
+      console.log('🌐 API URL:', `${API_URL}/auth/login`);
 
-      const response = await axios.post(`${API_URL}/auth`, credentials);
-      const { token, user } = response.data;
+      const response = await axios.post(`${API_URL}/auth/login`, credentials);
+      console.log('✅ Login response received:', response.data);
+      
+      const { token: accessToken, user } = response.data.data;
 
-      // Store authentication data
-      await SecureStore.setItemAsync(TOKEN_KEY, token);
-      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+      // Store authentication data with AsyncStorage as fallback
+      try {
+        await SecureStore.setItemAsync(TOKEN_KEY, accessToken);
+        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+      } catch (secureStoreError) {
+        // Fallback to AsyncStorage if SecureStore fails
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        await AsyncStorage.setItem('accessToken', accessToken);
+        await AsyncStorage.setItem('userData', JSON.stringify(user));
+      }
 
       // Set up axios defaults
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
 
       setAuthState({
-        token,
+        token: accessToken,
         authenticated: true,
         user,
         isLoading: false,
@@ -205,11 +194,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       return {
         success: true,
-        data: { token, user },
+        data: { token: accessToken, user },
         message: 'Login successful',
       };
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Login failed';
+      console.error('❌ Login error:', error);
+      console.error('❌ Error response:', error.response?.data);
+      console.error('❌ Error status:', error.response?.status);
+      
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Login failed';
       
       setAuthState(prev => ({ 
         ...prev, 
@@ -224,23 +217,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  /**
-   * Logout user and clear stored data
-   * 
-   * Completely clears the user session including:
-   * - JWT token from secure storage
-   * - User data from secure storage
-   * - Axios authorization headers
-   * - Authentication state
-   * 
-   * This function should be called when user manually logs out or when
-   * authentication fails (expired/invalid token).
-   */
   const logout = async (): Promise<void> => {
     try {
-      // Clear stored data
-      await SecureStore.deleteItemAsync(TOKEN_KEY);
-      await SecureStore.deleteItemAsync(USER_KEY);
+      // Clear stored data from both storage systems
+      try {
+        await SecureStore.deleteItemAsync(TOKEN_KEY);
+        await SecureStore.deleteItemAsync(USER_KEY);
+      } catch (secureStoreError) {
+        // Clear AsyncStorage as fallback
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        await AsyncStorage.removeItem('accessToken');
+        await AsyncStorage.removeItem('userData');
+      }
 
       // Clear axios defaults
       delete axios.defaults.headers.common['Authorization'];
@@ -306,46 +294,85 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+
+
   /**
-   * Demo login for development - bypasses authentication
+   * Update user profile information
    * 
-   * Creates a fake user session for development and testing purposes.
-   * This allows developers to test the app without setting up a backend.
+   * Updates the current user's profile data on the backend and refreshes
+   * the local user state with the updated information.
    * 
-   * IMPORTANT: This should be disabled in production builds.
-   * The demo mode is only available when __DEV__ is true.
+   * @param profileData - Partial user data to update
    */
-  const demoLogin = async (): Promise<void> => {
+  const updateProfile = async (profileData: Partial<User>): Promise<void> => {
     try {
-      setAuthState(prev => ({ ...prev, isLoading: true }));
+      if (!authState.token) {
+        throw new Error('Not authenticated');
+      }
 
-      // Create a demo user
-        const demoUser: User = {
-          id: 'demo-user-001',
-          email: 'demo@lumen.app',
-          firstName: 'Demo',
-          lastName: 'User',
-          phone: '+1 (555) 123-4567',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };      const demoToken = 'demo-token-' + Date.now();
-
-      // Set demo authentication state
-      setAuthState({
-        token: demoToken,
-        authenticated: true,
-        user: demoUser,
-        isLoading: false,
+      const response = await axios.put(`${API_URL}/auth/profile`, profileData, {
+        headers: {
+          'Authorization': `Bearer ${authState.token}`,
+        },
       });
 
-      console.log('🚀 Demo mode activated - bypassing authentication');
-    } catch (error) {
-      console.error('Demo login failed:', error);
-      setAuthState(prev => ({ 
-        ...prev, 
-        isLoading: false,
-        authenticated: false,
+      const updatedUser = response.data.data;
+
+      // Update stored user data
+      try {
+        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(updatedUser));
+      } catch (secureStoreError) {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        await AsyncStorage.setItem('userData', JSON.stringify(updatedUser));
+      }
+
+      // Update local state
+      setAuthState(prev => ({
+        ...prev,
+        user: updatedUser,
       }));
+    } catch (error: any) {
+      console.error('Profile update error:', error);
+      throw new Error(error.response?.data?.message || 'Failed to update profile');
+    }
+  };
+
+  /**
+   * Refresh user profile from backend
+   * 
+   * Fetches the latest user profile data from the backend and updates
+   * the local user state.
+   */
+  const refreshProfile = async (): Promise<void> => {
+    try {
+      if (!authState.token) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await axios.get(`${API_URL}/auth/profile`, {
+        headers: {
+          'Authorization': `Bearer ${authState.token}`,
+        },
+      });
+
+      const user = response.data.data;
+
+      // Update stored user data
+      try {
+        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+      } catch (secureStoreError) {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        await AsyncStorage.setItem('userData', JSON.stringify(user));
+      }
+
+      // Update local state
+      setAuthState(prev => ({
+        ...prev,
+        user,
+      }));
+    } catch (error: any) {
+      console.error('Profile refresh error:', error);
+      throw new Error(error.response?.data?.message || 'Failed to refresh profile');
     }
   };
 
@@ -356,7 +383,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     onLogout: logout,
     clearError,
     refreshToken,
-    onDemoLogin: demoLogin,
+    updateProfile,
+    refreshProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
