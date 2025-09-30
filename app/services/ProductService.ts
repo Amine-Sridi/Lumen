@@ -3,7 +3,7 @@ import { Product, CreateProductRequest, UpdateProductRequest, ApiResponse, Pagin
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
-const API_BASE_URL = 'http://192.168.0.193:3000/api';
+const API_BASE_URL = 'http://localhost:3000/api';
 
 class ProductService {
   private baseURL = `${API_BASE_URL}/products`;

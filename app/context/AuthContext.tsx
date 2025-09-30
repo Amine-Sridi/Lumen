@@ -52,7 +52,7 @@ const TOKEN_KEY = 'lumen_jwt_token';    // Key for storing JWT token
 const USER_KEY = 'lumen_user_data';     // Key for storing user profile data
 
 // API base URL - Configure this for your backend server
-export const API_URL = 'http://192.168.0.193:3000/api';
+export const API_URL = 'http://localhost:3000/api';
 
 // Create the authentication context
 const AuthContext = createContext<AuthContextType | null>(null);

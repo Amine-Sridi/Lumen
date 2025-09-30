@@ -122,7 +122,7 @@ backend/
 ### API Configuration
 Update the API URL in service files if needed:
 ```typescript
-// Default: http://192.168.0.193:3000/api
+// Default: http://localhost:3000/api
 const API_BASE_URL = 'your_api_url_here';
 ```
 
